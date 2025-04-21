@@ -1,6 +1,6 @@
 // Basic window and render size.
-pub const RENDER_WIDTH: u32 = 320;
-pub const RENDER_HEIGHT: u32 = 200;
+pub const RENDER_WIDTH: u32 = 640;
+pub const RENDER_HEIGHT: u32 = 400;
 pub const FRAME_RATE: u32 = 60;
 pub const CIRCLE_STEPS: u32 = 50;
 

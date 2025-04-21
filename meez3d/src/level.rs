@@ -13,37 +13,50 @@ use rand::random;
 use std::f32::consts::PI;
 use std::str::FromStr;
 
-const MOVE_SPEED: f32 = 0.1;
+const MOVE_SPEED: f32 = 0.05;
 const TURN_SPEED: f32 = 0.02;
 
-struct Tile {
-    solid: bool,
+enum Tile {
+    Empty,
+    Solid(Color),
 }
 
 struct Map {
     tiles: Vec<Vec<Tile>>,
 }
 
+fn uniform_random(min: f32, max: f32) -> f32 {
+    let range = max - min;
+    min + random::<f32>() * range
+}
+
 fn create_random_row(width: usize) -> Vec<Tile> {
     let mut row = Vec::new();
-    row.push(Tile { solid: true });
+    let border_color = Color::from_str("#0000ff").unwrap();
+    row.push(Tile::Solid(border_color));
     row.extend(
         std::iter::repeat_with(|| {
             if random::<f32>() < 0.1 {
-                Tile { solid: true }
+                let r = uniform_random(0.0, 256.0) as u8;
+                let g = uniform_random(0.0, 256.0) as u8;
+                let b = uniform_random(0.0, 256.0) as u8;
+                let a = 255;
+                let color = Color { r, g, b, a };
+                Tile::Solid(color)
             } else {
-                Tile { solid: false }
+                Tile::Empty
             }
         })
         .take(width - 2),
     );
-    row.push(Tile { solid: true });
+    row.push(Tile::Solid(border_color));
     row
 }
 
 fn create_random_map(width: usize, height: usize) -> Map {
+    let border_color = Color::from_str("#0000ff").unwrap();
     let full_row = || {
-        std::iter::repeat_with(|| Tile { solid: true })
+        std::iter::repeat_with(|| Tile::Solid(border_color))
             .take(width)
             .collect()
     };
@@ -66,7 +79,7 @@ pub struct Level {
 impl Level {
     pub fn new(_files: &FileManager, _images: &mut dyn ImageLoader) -> Level {
         Level {
-            map: create_random_map(32, 20),
+            map: create_random_map(32, 40),
             player_x: 2.0,
             player_y: 2.0,
             player_angle: 0.0,
@@ -105,11 +118,11 @@ impl Scene for Level {
             self.player_y -= MOVE_SPEED * y_component;
         }
         if inputs.player_strafe_left_down {
-            self.player_x -= MOVE_SPEED * y_component;
+            self.player_x += MOVE_SPEED * y_component;
             self.player_y -= MOVE_SPEED * x_component;
         }
         if inputs.player_strafe_right_down {
-            self.player_x += MOVE_SPEED * y_component;
+            self.player_x -= MOVE_SPEED * y_component;
             self.player_y += MOVE_SPEED * x_component;
         }
 
@@ -128,15 +141,17 @@ impl Scene for Level {
 
         let w = 10;
         let h = 10;
-        let solid_color = Color::from_str("#00007f").unwrap();
         let empty_color = Color::from_str("#000000").unwrap();
         for (i, row) in self.map.tiles.iter().enumerate() {
             let y = i as i32 * h;
             for (j, tile) in row.iter().enumerate() {
                 let x = j as i32 * w;
                 let rect = Rect { x, y, w, h };
-                let color = if tile.solid { solid_color } else { empty_color };
-                context.player_batch.fill_rect(rect, color);
+                let color = match tile {
+                    Tile::Empty => &empty_color,
+                    Tile::Solid(color) => color,
+                };
+                context.player_batch.fill_rect(rect, *color);
             }
         }
 

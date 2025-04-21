@@ -4,7 +4,7 @@ use std::time::Instant;
 use anyhow::{bail, Result};
 use clap::Parser;
 use log::{error, info};
-use winit::dpi::PhysicalSize;
+use winit::dpi::{LogicalPosition, PhysicalSize, Position};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
@@ -14,8 +14,8 @@ use meez3d::{
     StageManager, WgpuRenderer, RENDER_HEIGHT, RENDER_WIDTH,
 };
 
-pub const WINDOW_WIDTH: u32 = 1600;
-pub const WINDOW_HEIGHT: u32 = 900;
+pub const WINDOW_WIDTH: u32 = 2400;
+pub const WINDOW_HEIGHT: u32 = 1350;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -146,7 +146,10 @@ pub async fn run(args: Args) -> Result<()> {
 
     let file_manager = FileManager::from_fs()?;
 
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_position(Position::Logical(LogicalPosition::new(100.0, 100.0)))
+        .build(&event_loop)
+        .unwrap();
     let _ = window.request_inner_size(PhysicalSize::new(WINDOW_WIDTH, WINDOW_HEIGHT));
     let PhysicalSize { width, height } = window.inner_size();
     let width = if width == 0 { WINDOW_WIDTH } else { width };

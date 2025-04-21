@@ -1,13 +1,10 @@
 use std::mem;
 use std::path::Path;
-use std::str::FromStr;
 
 use anyhow::Result;
 use bytemuck::Zeroable;
 use log::{error, info};
-use raw_window_handle::{
-    HasDisplayHandle, HasRawDisplayHandle, HasRawWindowHandle, HasWindowHandle,
-};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use wgpu::util::DeviceExt;
 use wgpu::SurfaceTargetUnsafe;
 
