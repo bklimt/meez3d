@@ -1,0 +1,7 @@
+quit_button.png
+retry_button.png
+start_button.png
+splash.png
+8bitfont.png
+cursor.png
+red.png

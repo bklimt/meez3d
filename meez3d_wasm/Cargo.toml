@@ -1,0 +1,27 @@
+[package]
+name = "meez3d_wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+meez3d = { path="../meez3d", default-features=false, features=["wgpu", "winit"] }
+
+anyhow = "1.0"
+log = "0.4.22"
+winit = {version="0.29.15", features=["rwh_06"]}
+
+console_error_panic_hook = "0.1.7"
+console_log = "1.0"
+wgpu = {version = "0.19", features = ["webgl"]}
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4.43"
+web-sys = { version = "0.3", features = [
+    "Document",
+    "Window",
+    "Element",
+    "HtmlAudioElement",
+]}
+base64 = "0.21.7"

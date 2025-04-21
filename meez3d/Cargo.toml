@@ -1,0 +1,27 @@
+[package]
+name = "meez3d"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["sdl2", "wgpu", "winit"]
+
+[dependencies]
+anyhow = "1.0"
+bytemuck = {version="1.17", features=["derive"]}
+cgmath = "0.18"
+flate2 = "1.0.31"
+gilrs = "0.10.9"
+image = {version="0.24", default-features=false, features=["jpeg", "png"]}
+log = "0.4.22"
+num-traits = "0.2.19"
+quick-xml = {version="0.31.0", features=["serialize"]}
+rand = "0.8.5"
+raw-window-handle = "0.6.2"
+serde = {version="1.0.208", features=["derive"]}
+tar = "0.4.41"
+thiserror = "1.0.63"
+
+sdl2 = {version="0.37.0", features=["image", "raw-window-handle"], optional=true}
+wgpu = {version="0.19", optional=true}
+winit = {version="0.29.15", features=["rwh_06"], optional=true}

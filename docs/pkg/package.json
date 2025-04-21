@@ -1,0 +1,15 @@
+{
+  "name": "flywheel_wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "flywheel_wasm_bg.wasm",
+    "flywheel_wasm.js",
+    "flywheel_wasm.d.ts"
+  ],
+  "main": "flywheel_wasm.js",
+  "types": "flywheel_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

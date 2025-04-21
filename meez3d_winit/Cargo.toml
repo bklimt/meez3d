@@ -1,0 +1,14 @@
+[package]
+name = "meez3d_winit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+meez3d = { path="../meez3d", default-features=false, features=["wgpu", "winit"] }
+
+anyhow = "1.0"
+clap = {version="4.4.12", features=["derive"]}
+env_logger = "0.10.2"
+log = "0.4.20"
+pollster = "0.3"
+winit = {version="0.29.10", features=["rwh_06"]}
