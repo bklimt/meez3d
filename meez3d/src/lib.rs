@@ -1,3 +1,5 @@
+#![allow(clippy::manual_range_contains, clippy::collapsible_else_if)]
+
 mod constants;
 mod cursor;
 mod filemanager;
