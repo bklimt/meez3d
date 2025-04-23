@@ -901,6 +901,8 @@ impl InputManager {
                 if let Some((axis, polarity)) = match axis {
                     gilrs::Axis::LeftStickY => Some((0, -1.0)),
                     gilrs::Axis::LeftStickX => Some((1, 1.0)),
+                    gilrs::Axis::RightStickY => Some((2, -1.0)),
+                    gilrs::Axis::RightStickX => Some((3, 1.0)),
                     _ => None,
                 } {
                     let axis = axis.try_into().expect("should be valid");
