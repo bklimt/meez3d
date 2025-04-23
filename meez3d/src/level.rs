@@ -10,10 +10,13 @@ use crate::RenderContext;
 use crate::SoundManager;
 use crate::{Font, FRAME_RATE};
 use rand::random;
+use std::f32::consts::FRAC_PI_2;
 use std::f32::consts::PI;
+use std::f32::consts::TAU;
 use std::str::FromStr;
 
 const TOLERANCE: f32 = 0.0001;
+const PLAYER_SIZE: f32 = 0.8;
 const MOVE_SPEED: f32 = 0.05;
 const TURN_SPEED: f32 = 0.02;
 
@@ -38,13 +41,12 @@ fn uniform_random(min: f32, max: f32) -> f32 {
     min + random::<f32>() * range
 }
 
-fn create_random_row(width: usize) -> Vec<Tile> {
+fn create_random_row(width: usize, border_color: Color) -> Vec<Tile> {
     let mut row = Vec::new();
-    let border_color = Color::from_str("#0000ff").unwrap();
     row.push(Tile::Solid(border_color));
     row.extend(
         std::iter::repeat_with(|| {
-            if random::<f32>() < 0.05 {
+            if random::<f32>() < 0.025 {
                 let r = uniform_random(0.0, 256.0) as u8;
                 let g = uniform_random(0.0, 256.0) as u8;
                 let b = uniform_random(0.0, 256.0) as u8;
@@ -62,7 +64,7 @@ fn create_random_row(width: usize) -> Vec<Tile> {
 }
 
 fn create_random_map(width: usize, height: usize) -> Map {
-    let border_color = Color::from_str("#0000ff").unwrap();
+    let border_color = Color::from_str("#ffffff").unwrap();
     let full_row = || {
         std::iter::repeat_with(|| Tile::Solid(border_color))
             .take(width)
@@ -71,7 +73,7 @@ fn create_random_map(width: usize, height: usize) -> Map {
 
     let mut map = Vec::new();
     map.push(full_row());
-    map.extend(std::iter::repeat_with(|| create_random_row(width)).take(height - 2));
+    map.extend(std::iter::repeat_with(|| create_random_row(width, border_color)).take(height - 2));
     map.push(full_row());
 
     Map {
@@ -92,6 +94,7 @@ struct Projection {
     x: f32,
     y: f32,
     color: Color,
+    normal: f32,
 }
 
 struct PathIndex {
@@ -113,6 +116,41 @@ impl Level {
         }
     }
 
+    #[allow(clippy::collapsible_if)]
+    fn can_move_to(&self, x: f32, y: f32) -> bool {
+        let lower_bound = PLAYER_SIZE / 2.0;
+        let upper_bound = 1.0 - (PLAYER_SIZE / 2.0);
+
+        let row = y as usize;
+        let col = x as usize;
+        let x_frac = x - col as f32;
+        let y_frac = y - row as f32;
+        if !matches!(self.map.tiles[row][col], Tile::Empty) {
+            return false;
+        }
+        if x_frac < lower_bound {
+            if col == 0 || !matches!(self.map.tiles[row][col - 1], Tile::Empty) {
+                return false;
+            }
+        }
+        if y_frac < lower_bound {
+            if row == 0 || !matches!(self.map.tiles[row - 1][col], Tile::Empty) {
+                return false;
+            }
+        }
+        if x_frac > upper_bound {
+            if col >= self.map.width - 1 || !matches!(self.map.tiles[row][col + 1], Tile::Empty) {
+                return false;
+            }
+        }
+        if y_frac > upper_bound {
+            if row >= self.map.height - 1 || !matches!(self.map.tiles[row + 1][col], Tile::Empty) {
+                return false;
+            }
+        }
+        true
+    }
+
     fn project(
         &self,
         angle: f32,
@@ -124,12 +162,19 @@ impl Level {
         let row = y as usize;
         let x = x - column as f32;
         let y = y - row as f32;
-        self.project2(angle, row, column, x, y, path)
+        self.project2(angle, row, column, x, y, -angle, path)
     }
 
     /// Projects a line through the tile map.
     ///
-    /// angle: the angle
+    /// angle: the angle, with 0 being right, and positive being clockwise, in radians
+    /// row: the row of the map the user is in, where 0 is the top
+    /// column: the column of the map the user is in
+    /// x: where in the tile the user is, in the range [0.0, 1.0]
+    /// y: where in the tile the user is, in the range [0.0, 1.0], with 0 being the top
+    /// normal: the normal angle of the last cell boundary crossed, defined like angle
+    ///
+    #[allow(clippy::too_many_arguments)]
     fn project2(
         &self,
         angle: f32,
@@ -137,6 +182,7 @@ impl Level {
         column: usize,
         x: f32,
         y: f32,
+        normal: f32,
         path: &mut Option<Vec<PathIndex>>,
     ) -> Option<Projection> {
         // Check out of bounds.
@@ -154,25 +200,34 @@ impl Level {
                 x: column as f32 + x,
                 y: row as f32 + y,
                 color,
+                normal,
             });
         }
 
         // Check the cardinal directions, since the math gets funky.
         if float_eq(angle, 0.0) {
             // Straight right.
-            return self.project2(angle, row, column + 1, 0.0, y, path);
+            return self.project2(angle, row, column + 1, 0.0, y, PI, path);
         }
         if float_eq(angle, PI) {
             // Straight left.
-            return self.project2(angle, row, column - 1, 1.0, y, path);
+            return if column == 0 {
+                None
+            } else {
+                return self.project2(angle, row, column - 1, 1.0, y, 0.0, path);
+            };
         }
-        if float_eq(angle, PI / 2.0) {
+        if float_eq(angle, FRAC_PI_2) {
             // Straight down.
-            return self.project2(angle, row + 1, column, x, 0.0, path);
+            return self.project2(angle, row + 1, column, x, 0.0, 3.0 * FRAC_PI_2, path);
         }
-        if float_eq(angle, (3.0 * PI) / 2.0) {
+        if float_eq(angle, 3.0 * FRAC_PI_2) {
             // Straight up.
-            return self.project2(angle, row - 1, column, x, 1.0, path);
+            return if row == 0 {
+                None
+            } else {
+                self.project2(angle, row - 1, column, x, 1.0, FRAC_PI_2, path)
+            };
         }
 
         // TODO: Try to simplify this.
@@ -197,21 +252,29 @@ impl Level {
              */
 
             let x_intercept = x + (1.0 - y) / angle.tan();
-            if x_intercept <= 0.0 {
+            if x_intercept < 0.0 {
                 // it hit the left.
                 if column == 0 {
                     None
                 } else {
                     let y_intercept = 1.0 - ((1.0 - y) + x * angle.tan());
-                    self.project2(angle, row, column - 1, 1.0, y_intercept, path)
+                    self.project2(angle, row, column - 1, 1.0, y_intercept, 0.0, path)
                 }
             } else if x_intercept < 1.0 {
                 // it hit the bottom.
-                self.project2(angle, row + 1, column, x_intercept, 0.0, path)
+                self.project2(
+                    angle,
+                    row + 1,
+                    column,
+                    x_intercept,
+                    0.0,
+                    3.0 * FRAC_PI_2,
+                    path,
+                )
             } else {
                 // it hit the right.
                 let y_intercept = y + (1.0 - x) * angle.tan();
-                self.project2(angle, row, column + 1, 0.0, y_intercept, path)
+                self.project2(angle, row, column + 1, 0.0, y_intercept, PI, path)
             }
         } else {
             // It's pointing upish.
@@ -225,23 +288,27 @@ impl Level {
              *      |            |
              *      +------------+
              */
-            let up_angle = (2.0 * PI) - angle;
+            let up_angle = TAU - angle;
             let x_intercept = x + y / up_angle.tan();
-            if x_intercept <= 0.0 {
+            if x_intercept < 0.0 {
                 // it hit the left.
                 if column == 0 {
                     None
                 } else {
                     let y_intercept = 1.0 - ((1.0 - y) - x * up_angle.tan());
-                    self.project2(angle, row, column - 1, 1.0, y_intercept, path)
+                    self.project2(angle, row, column - 1, 1.0, y_intercept, 0.0, path)
                 }
             } else if x_intercept < 1.0 {
                 // it hit the top.
-                self.project2(angle, row - 1, column, x_intercept, 1.0, path)
+                if row == 0 {
+                    None
+                } else {
+                    self.project2(angle, row - 1, column, x_intercept, 1.0, FRAC_PI_2, path)
+                }
             } else {
                 // it hit the right.
                 let y_intercept = y - (1.0 - x) * up_angle.tan();
-                self.project2(angle, row, column + 1, 0.0, y_intercept, path)
+                self.project2(angle, row, column + 1, 0.0, y_intercept, PI, path)
             }
         }
     }
@@ -266,30 +333,38 @@ impl Scene for Level {
         if inputs.player_turn_right_down {
             self.player_angle += TURN_SPEED;
         }
-        while self.player_angle >= PI * 2.0 {
-            self.player_angle -= PI * 2.0;
+        while self.player_angle >= TAU {
+            self.player_angle -= TAU;
         }
         while self.player_angle < 0.0 {
-            self.player_angle += PI * 2.0;
+            self.player_angle += TAU;
         }
 
         let x_component = self.player_angle.cos();
         let y_component = self.player_angle.sin();
+        let mut dx = 0.0;
+        let mut dy = 0.0;
         if inputs.player_forward_down {
-            self.player_x += MOVE_SPEED * x_component;
-            self.player_y += MOVE_SPEED * y_component;
+            dx += MOVE_SPEED * x_component;
+            dy += MOVE_SPEED * y_component;
         }
         if inputs.player_backward_down {
-            self.player_x -= MOVE_SPEED * x_component;
-            self.player_y -= MOVE_SPEED * y_component;
+            dx -= MOVE_SPEED * x_component;
+            dy -= MOVE_SPEED * y_component;
         }
         if inputs.player_strafe_left_down {
-            self.player_x += MOVE_SPEED * y_component;
-            self.player_y -= MOVE_SPEED * x_component;
+            dx += MOVE_SPEED * y_component;
+            dy -= MOVE_SPEED * x_component;
         }
         if inputs.player_strafe_right_down {
-            self.player_x -= MOVE_SPEED * y_component;
-            self.player_y += MOVE_SPEED * x_component;
+            dx -= MOVE_SPEED * y_component;
+            dy += MOVE_SPEED * x_component;
+        }
+        if self.can_move_to(self.player_x, self.player_y + dy) {
+            self.player_y += dy;
+        }
+        if self.can_move_to(self.player_x + dx, self.player_y) {
+            self.player_x += dx;
         }
 
         SceneResult::Continue
@@ -360,13 +435,37 @@ impl Scene for Level {
             }
 
             if let Some(projection) = self.project(angle, self.player_x, self.player_y, &mut None) {
+                // Scale for distance.
                 let distance = ((self.player_x - projection.x) * (self.player_x - projection.x)
                     + (self.player_y - projection.y) * (self.player_y - projection.y))
                     .sqrt();
+                // Remove fisheye effect.
+                let distance = distance * (self.player_angle - angle).cos();
 
+                // TODO: Use a numerator other than 1?
                 let scale = if distance < 1.0 { 1.0 } else { 1.0 / distance };
                 let height = (RENDER_HEIGHT as f32 * scale) as i32;
                 let offset = (RENDER_HEIGHT as i32 - height) / 2;
+
+                // Compute factor for diffuse lighting.
+                let projection_dx = self.player_x - projection.x;
+                let projection_dy = self.player_y - projection.y;
+                let projection_angle = projection_dy.atan2(projection_dx);
+                let angle_diff = (projection_angle - projection.normal).abs();
+                let diffusion = angle_diff.cos().clamp(0.5, 1.0);
+
+                // Compute factor for distance lighting.
+                // let dimming = 1.0 + 0.00002 * distance.powf(3.5);
+                let dimming = 1.0;
+
+                let light = (diffusion / dimming).clamp(0.0, 1.0);
+
+                let color = Color {
+                    r: (projection.color.r as f32 * light) as u8,
+                    g: (projection.color.g as f32 * light) as u8,
+                    b: (projection.color.b as f32 * light) as u8,
+                    a: projection.color.a,
+                };
 
                 context.player_batch.draw_line(
                     Point {
@@ -377,7 +476,7 @@ impl Scene for Level {
                         x: 320 + column,
                         y: offset + height,
                     },
-                    projection.color,
+                    color,
                     1,
                 );
             }
