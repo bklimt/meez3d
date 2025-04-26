@@ -377,7 +377,8 @@ impl Scene for Level {
             w: RENDER_WIDTH as i32,
             h: RENDER_HEIGHT as i32,
         };
-        let bgcolor = Color::from_str("#00333c").unwrap();
+        //let bgcolor = Color::from_str("#00333c").unwrap();
+        let bgcolor = Color::from_str("#333333").unwrap();
         context.player_batch.fill_rect(screen, bgcolor);
 
         // Draw the 2d version.
@@ -477,6 +478,22 @@ impl Scene for Level {
                         y: offset + height,
                     },
                     color,
+                    1,
+                );
+
+                let reflection_height = height / 3;
+                let mut reflection_color = color;
+                reflection_color.a = 0x22;
+                context.player_batch.draw_line(
+                    Point {
+                        x: 320 + column,
+                        y: offset + height,
+                    },
+                    Point {
+                        x: 320 + column,
+                        y: offset + height + reflection_height,
+                    },
+                    reflection_color,
                     1,
                 );
             }
