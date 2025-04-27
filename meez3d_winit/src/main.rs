@@ -14,8 +14,8 @@ use meez3d::{
     StageManager, WgpuRenderer, RENDER_HEIGHT, RENDER_WIDTH,
 };
 
-pub const WINDOW_WIDTH: u32 = 2400;
-pub const WINDOW_HEIGHT: u32 = 1350;
+pub const WINDOW_WIDTH: u32 = 1600;
+pub const WINDOW_HEIGHT: u32 = 1000;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

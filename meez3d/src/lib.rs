@@ -27,7 +27,7 @@ pub use constants::{FRAME_RATE, RENDER_HEIGHT, RENDER_WIDTH};
 
 pub use filemanager::FileManager;
 pub use font::Font;
-pub use imagemanager::ImageManager;
+pub use imagemanager::{ImageLoader, ImageManager};
 pub use inputmanager::{InputManager, RecordOption};
 pub use rendercontext::RenderContext;
 pub use soundmanager::{Sound, SoundManager, SoundPlayer};

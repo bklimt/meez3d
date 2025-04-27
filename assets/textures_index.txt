@@ -1,7 +1,8 @@
 0,0,1600,900,red.png
 0,900,1600,900,splash.png
-0,1800,394,145,start_button.png
-394,1800,394,145,retry_button.png
-788,1800,394,145,quit_button.png
-1182,1800,96,96,8bitfont.png
-1278,1800,64,64,cursor.png
+0,1800,640,400,spacebg.png
+640,1800,394,145,start_button.png
+1034,1800,394,145,retry_button.png
+1428,1800,96,96,8bitfont.png
+1524,1800,64,64,cursor.png
+0,2200,394,145,quit_button.png

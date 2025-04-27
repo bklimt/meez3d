@@ -5,14 +5,17 @@ use crate::imagemanager::ImageLoader;
 use crate::inputmanager::InputSnapshot;
 use crate::scene::Scene;
 use crate::scene::SceneResult;
+use crate::sprite::Sprite;
 use crate::utils::Color;
 use crate::RenderContext;
 use crate::SoundManager;
 use crate::{Font, FRAME_RATE};
+use anyhow::Result;
 use rand::random;
 use std::f32::consts::FRAC_PI_2;
 use std::f32::consts::PI;
 use std::f32::consts::TAU;
+use std::path::Path;
 use std::str::FromStr;
 
 const TOLERANCE: f32 = 0.0001;
@@ -88,6 +91,7 @@ pub struct Level {
     player_x: f32,
     player_y: f32,
     player_angle: f32,
+    background: Sprite,
 }
 
 struct Projection {
@@ -107,13 +111,14 @@ fn float_eq(f1: f32, f2: f32) -> bool {
 }
 
 impl Level {
-    pub fn new(_files: &FileManager, _images: &mut dyn ImageLoader) -> Level {
-        Level {
-            map: create_random_map(32, 40),
-            player_x: 16.5,
-            player_y: 20.5,
+    pub fn new(_files: &FileManager, images: &mut dyn ImageLoader) -> Result<Level> {
+        Ok(Level {
+            map: create_random_map(32, 32),
+            player_x: 15.5,
+            player_y: 15.5,
             player_angle: 0.0,
-        }
+            background: images.load_sprite(Path::new("assets/spacebg.png"))?,
+        })
     }
 
     #[allow(clippy::collapsible_if)]
@@ -381,51 +386,47 @@ impl Scene for Level {
         let bgcolor = Color::from_str("#333333").unwrap();
         context.player_batch.fill_rect(screen, bgcolor);
 
-        // Draw the 2d version.
+        // Draw the background.
+        let background_fraction = if self.player_angle < PI {
+            -1.0 * self.player_angle / PI
+        } else {
+            1.0 - (self.player_angle - PI) / PI
+        };
+        let background_offset = (RENDER_WIDTH as f32 * background_fraction) as i32;
 
-        let w = 10;
-        let h = 10;
-        let empty_color = Color::from_str("#000000").unwrap();
-        for (i, row) in self.map.tiles.iter().enumerate() {
-            let y = i as i32 * h;
-            for (j, tile) in row.iter().enumerate() {
-                let x = j as i32 * w;
-                let rect = Rect { x, y, w, h };
-                let color = match tile {
-                    Tile::Empty => &empty_color,
-                    Tile::Solid(color) => color,
-                };
-                context.player_batch.fill_rect(rect, *color);
-            }
-        }
+        let background_src = Rect {
+            x: 0,
+            y: 0,
+            w: 640,
+            h: (RENDER_HEIGHT as i32 / 2).max(400),
+        };
+        let background_dst = Rect {
+            x: background_offset,
+            y: 0,
+            w: RENDER_WIDTH as i32,
+            h: RENDER_HEIGHT as i32 / 2,
+        };
+        context
+            .player_batch
+            .draw(self.background, background_dst, background_src, false);
 
-        let player_color = Color::from_str("#ffffff").unwrap();
-        context.player_batch.fill_circle(
-            Point {
-                x: (self.player_x * w as f32) as i32,
-                y: (self.player_y * h as f32) as i32,
+        let background_dst = Rect {
+            x: if background_dst.x < 0 {
+                background_dst.x + RENDER_WIDTH as i32
+            } else {
+                background_dst.x - RENDER_WIDTH as i32
             },
-            5.0,
-            player_color,
-        );
-
-        let player_color = Color::from_str("#7fff0000").unwrap();
-        let start_theta = self.player_angle - (PI / 4.0);
-        let end_theta = self.player_angle + (PI / 4.0);
-        context.player_batch.fill_arc(
-            Point {
-                x: (self.player_x * w as f32) as i32,
-                y: (self.player_y * h as f32) as i32,
-            },
-            40.0,
-            start_theta,
-            end_theta,
-            player_color,
-        );
+            y: 0,
+            w: RENDER_WIDTH as i32,
+            h: RENDER_HEIGHT as i32 / 2,
+        };
+        context
+            .player_batch
+            .draw(self.background, background_dst, background_src, true);
 
         // draw the 3d version.
-        for column in 0..320 {
-            let angle = ((column as f32) / 320.0) * (PI / 2.0);
+        for column in 0..640 {
+            let angle = ((column as f32) / 640.0) * FRAC_PI_2;
             let angle = angle - (PI / 4.0);
             let mut angle = self.player_angle + angle;
             while angle >= PI * 2.0 {
@@ -470,11 +471,11 @@ impl Scene for Level {
 
                 context.player_batch.draw_line(
                     Point {
-                        x: 320 + column,
+                        x: column,
                         y: offset,
                     },
                     Point {
-                        x: 320 + column,
+                        x: column,
                         y: offset + height,
                     },
                     color,
@@ -486,11 +487,11 @@ impl Scene for Level {
                 reflection_color.a = 0x22;
                 context.player_batch.draw_line(
                     Point {
-                        x: 320 + column,
+                        x: column,
                         y: offset + height,
                     },
                     Point {
-                        x: 320 + column,
+                        x: column,
                         y: offset + height + reflection_height,
                     },
                     reflection_color,
@@ -498,6 +499,49 @@ impl Scene for Level {
                 );
             }
         }
+
+        // Draw the 2d version.
+        let player_size = 1.0;
+        let vision_distance = 15.0;
+        let w = 2;
+        let h = 2;
+        let empty_color = Color::from_str("#000000").unwrap();
+        for (i, row) in self.map.tiles.iter().enumerate() {
+            let y = i as i32 * h;
+            for (j, tile) in row.iter().enumerate() {
+                let x = j as i32 * w;
+                let rect = Rect { x, y, w, h };
+                let color = match tile {
+                    Tile::Empty => &empty_color,
+                    Tile::Solid(color) => color,
+                };
+                context.player_batch.fill_rect(rect, *color);
+            }
+        }
+
+        let player_color = Color::from_str("#ffffff").unwrap();
+        context.player_batch.fill_circle(
+            Point {
+                x: (self.player_x * w as f32) as i32,
+                y: (self.player_y * h as f32) as i32,
+            },
+            player_size,
+            player_color,
+        );
+
+        let player_color = Color::from_str("#7fff0000").unwrap();
+        let start_theta = self.player_angle - (PI / 4.0);
+        let end_theta = self.player_angle + (PI / 4.0);
+        context.player_batch.fill_arc(
+            Point {
+                x: (self.player_x * w as f32) as i32,
+                y: (self.player_y * h as f32) as i32,
+            },
+            vision_distance,
+            start_theta,
+            end_theta,
+            player_color,
+        );
 
         // draw a single line point.
         let looking_color = Color::from_str("#FFFFFF").unwrap();
@@ -522,7 +566,7 @@ impl Scene for Level {
                     y: (h as f32 * looking_at.y) as i32,
                 },
                 looking_color,
-                3,
+                1,
             );
         }
     }

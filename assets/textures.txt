@@ -5,3 +5,4 @@ splash.png
 8bitfont.png
 cursor.png
 red.png
+spacebg.png

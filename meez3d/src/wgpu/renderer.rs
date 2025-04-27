@@ -53,6 +53,7 @@ const RECT_VERTICES: &[PostprocessVertex] = &[
     },
 ];
 
+#[allow(clippy::too_many_arguments)]
 fn add_rect_to_vertex_buffer(
     vertices: &mut Vec<Vertex>,
     vertex_count: &mut usize,

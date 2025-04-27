@@ -23,7 +23,7 @@ impl StageManager {
     pub fn new(file_manager: &FileManager, images: &mut dyn ImageLoader) -> Result<StageManager> {
         // let path = Path::new("assets/menus/start.tmx");
         // let splash = Menu::new_splash(file_manager, images)?;
-        let level = Level::new(file_manager, images);
+        let level = Level::new(file_manager, images)?;
         Ok(StageManager {
             current: Box::new(level),
             stack: Vec::new(),
@@ -59,7 +59,7 @@ impl StageManager {
                 }
             }
             SceneResult::PushLevel => {
-                let level = Level::new(files, images);
+                let level = Level::new(files, images)?;
                 let level = Box::new(level);
                 let previous = mem::replace(&mut self.current, level);
                 self.stack.push(previous);
@@ -67,7 +67,7 @@ impl StageManager {
             }
             SceneResult::ReloadLevel => {
                 self.stack.pop();
-                self.current = Box::new(Level::new(files, images));
+                self.current = Box::new(Level::new(files, images)?);
                 true
             }
             SceneResult::PushMenu => {
